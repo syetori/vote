@@ -58,6 +58,20 @@
   /* Панель действий */
   #actions{ position:absolute; z-index:5; display:flex; gap:8px; }
   .hidden{ display:none !important; }
+#controls{
+  position:fixed;          /* вместо absolute */
+  bottom:20px; right:20px;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  z-index:9999;            /* гарантированно поверх сцены */
+  user-select:none;
+}
+#controls .ctrl{
+  touch-action:none;        /* не скроллить под пальцем */
+  -webkit-user-select:none; /* не выделять */
+  user-select:none;
+}
+#controls .mid{ display:flex; gap:4px; } /* чтобы средний ряд был в линию */
+
 
   /* Тост */
   #toast{
@@ -94,33 +108,44 @@
     <div id="roomLabel">дауыс беру бөлмесі · 2022 жыл</div>
   </header>
 
-  <main id="world">
-    <!-- кандидаты -->
-    <div id="cand1" class="candidate">
-      <img src="" alt="">
-      <div class="speech"></div>
-    </div>
-    <div id="cand2" class="candidate">
-      <img src="" alt="">
-      <div class="speech"></div>
-    </div>
+ <main id="world">
+  <!-- кандидаты -->
+  <div id="cand1" class="candidate">
+    <img src="" alt="">
+    <div class="speech"></div>
+  </div>
+  <div id="cand2" class="candidate">
+    <img src="" alt="">
+    <div class="speech"></div>
+  </div>
 
-    <!-- зоны -->
-    <div id="desk" title="Стол"></div>
-    <div id="ballotBox" title="Урна"></div>
+  <!-- зоны -->
+  <div id="desk" title="Стол"></div>
+  <div id="ballotBox" title="Урна"></div>
 
-    <!-- игрок -->
-    <div id="player"><div class="tag">Вы</div></div>
+  <!-- игрок -->
+  <div id="player"><div class="tag">Вы</div></div>
 
-    <!-- действия -->
-    <div id="actions" class="hidden">
-      <button id="takeBtn" class="btn">📄 Бюллетень алу</button>
-      <button id="voteBtn" class="btn">🗳️ Дауыс беру</button>
-    </div>
+  <!-- действия -->
+  <div id="actions" class="hidden">
+    <button id="takeBtn" class="btn">📄 Бюллетень алу</button>
+    <button id="voteBtn" class="btn">🗳️ Дауыс беру</button>
+  </div>
 
-    <!-- тост -->
-    <div id="toast">Сіз дауыс бердіңіз!</div>
-  </main>
+  <!-- тост -->
+  <div id="toast">Сіз дауыс бердіңіз!</div>
+</main>
+
+<!-- КНОПКИ УПРАВЛЕНИЯ ДЛЯ ТАЧ -->
+<div id="controls">
+  <button class="ctrl" data-dir="up">▲</button>
+  <div class="mid">
+    <button class="ctrl" data-dir="left">◀</button>
+    <button class="ctrl" data-dir="down">▼</button>
+    <button class="ctrl" data-dir="right">▶</button>
+  </div>
+</div>
+
 
   <footer><div style="font-size:10px;opacity:.7">© Аллаберген Аяулым</div></footer>
 </div>
@@ -220,7 +245,29 @@ let bubbleTimers=[null,null], hideTimers=[null,null];
 /* ---------- Движение ---------- */
 addEventListener('keydown', e=>keys[e.key]=true);
 addEventListener('keyup',   e=>keys[e.key]=false);
+// === ВИРТ-СТРЕЛКИ (тач/мышь) ===
+const dirKey = { up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight' };
 
+document.querySelectorAll('#controls .ctrl').forEach(btn=>{
+  const key = dirKey[btn.dataset.dir];
+  if(!key) return;
+
+  const press   = (e)=>{ e.preventDefault(); keys[key] = true;  };
+  const release = (e)=>{ e.preventDefault(); keys[key] = false; };
+
+  // Pointer-события покрывают и тач, и мышь
+  btn.addEventListener('pointerdown', press,   {passive:false});
+  btn.addEventListener('pointerup',   release, {passive:false});
+  btn.addEventListener('pointerleave',release, {passive:false});
+  btn.addEventListener('pointercancel',release,{passive:false});
+});
+
+// На всякий случай: отпускаем всё при уходе со страницы / потере фокуса
+window.addEventListener('pointerup',   ()=>{ Object.keys(dirKey).forEach(d=>keys[dirKey[d]]=false); });
+window.addEventListener('blur',        ()=>{ Object.keys(dirKey).forEach(d=>keys[dirKey[d]]=false); });
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) Object.keys(dirKey).forEach(d=>keys[dirKey[d]]=false);
+});
 function move(){
   const r=world.getBoundingClientRect();
   let moved=false;
